@@ -1,11 +1,17 @@
 package main
 
+import "fmt"
+
 // API Objects
 // https://docs.battlesnake.com/api
 
 type Coord struct {
 	X int `json:"x"`
 	Y int `json:"y"`
+}
+
+func (coord Coord) asString() string {
+	return fmt.Sprintf("(%d,%d)", coord.X, coord.Y)
 }
 
 type Battlesnake struct {

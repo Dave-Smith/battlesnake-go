@@ -7,6 +7,8 @@ import (
 	"os"
 )
 
+var plan = NewTailChasingPlan()
+
 func HandleStart(w http.ResponseWriter, r *http.Request) {
 	state := GameState{}
 	err := json.NewDecoder(r.Body).Decode(&state)
@@ -15,7 +17,8 @@ func HandleStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	start(state)
+	// start(state)
+	plan.start(state)
 
 	// Nothing to respond with here
 }
@@ -26,8 +29,12 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 		log.Printf("ERROR: Failed to decode move json, %s", err)
 		return
 	}
+	log.Printf("Head position: (%d,%d), Body: %v, Health: %d, Length: %d", state.You.Head.X, state.You.Head.Y, state.You.Body, state.You.Health, state.You.Length)
 
-	response := move(state)
+	// response := move(state)
+	response := plan.move(state)
+
+	log.Printf("Moving %s", response.Move)
 
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(response)
@@ -62,7 +69,6 @@ func withServerID(next http.HandlerFunc) http.HandlerFunc {
 }
 
 // Start Battlesnake Server
-
 
 func HandleIndex(w http.ResponseWriter, r *http.Request) {
 	response := info()

@@ -17,8 +17,8 @@ func HandleStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// start(state)
-	plan.start(state)
+	start(state)
+	// plan.start(state)
 
 	// Nothing to respond with here
 }
@@ -32,7 +32,8 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Head position: (%d,%d), Body: %v, Health: %d, Length: %d", state.You.Head.X, state.You.Head.Y, state.You.Body, state.You.Health, state.You.Length)
 
 	// response := move(state)
-	response := plan.move(state)
+	response := moveSemiBlindWandering(state)
+	// response := plan.move(state)
 
 	log.Printf("Moving %s", response.Move)
 
@@ -83,7 +84,7 @@ func HandleIndex(w http.ResponseWriter, r *http.Request) {
 func RunServer() {
 	port := os.Getenv("PORT")
 	if len(port) == 0 {
-		port = "8000"
+		port = "8080"
 	}
 
 	http.HandleFunc("/", withServerID(HandleIndex))

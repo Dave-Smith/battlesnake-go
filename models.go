@@ -76,6 +76,7 @@ type BattlesnakeInfoResponse struct {
 	Color      string `json:"color"`
 	Head       string `json:"head"`
 	Tail       string `json:"tail"`
+	Version    string `json:"version"`
 }
 
 type BattlesnakeMoveResponse struct {

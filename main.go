@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"math/rand"
+	"time"
 )
 
 var priorMoves = make(map[string]string)
@@ -15,10 +16,11 @@ func info() BattlesnakeInfoResponse {
 
 	return BattlesnakeInfoResponse{
 		APIVersion: "1",
-		Author:     "Dave-Smith", // TODO: Your Battlesnake username
-		Color:      "#888888",    // TODO: Choose color
-		Head:       "default",    // TODO: Choose head
-		Tail:       "default",    // TODO: Choose tail
+		Author:     "Dave-Smith",
+		Color:      "#7ABF36",
+		Head:       "all-seeing",
+		Tail:       "do-sammy",
+		Version:    "0.0.1-beta",
 	}
 }
 
@@ -131,6 +133,16 @@ func move(state GameState) BattlesnakeMoveResponse {
 
 	log.Printf("MOVE %d: %s\n", state.Turn, nextMove)
 	return BattlesnakeMoveResponse{Move: nextMove}
+}
+
+func moveSemiBlindWandering(state GameState) BattlesnakeMoveResponse {
+	curr := state.You.Head
+	gameMap := fillMap(state.Board, state.You)
+	safe := safeMoves(curr, gameMap)
+	log.Printf("Safe coordinates for next move %v", safe)
+	rand.Seed(time.Now().Unix())
+	next := safe[rand.Intn(len(safe))]
+	return BattlesnakeMoveResponse{Move: dir(curr, next)}
 }
 
 func main() {

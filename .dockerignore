@@ -18,6 +18,9 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
+# Git directory
+**/.git
+
 # Go workspace file
 **/go.work
 fly.toml

@@ -1,19 +1,10 @@
 package main
 
 import (
-	"log"
 	"math"
 )
 
-type TailChasing struct {
-	path         []Coord
-	pathToCorner []Coord
-	pathIndex    int
-	corner       Coord
-	fromWallY    int
-	fromWallX    int
-}
-
+type Coords []Coord
 type GameMap [][]CellOccupant
 type CellOccupant int
 
@@ -25,62 +16,16 @@ const (
 	VulnerableSnake
 )
 
+type Movement int
+
+const (
+	Up Movement = iota
+	Right
+	Down
+	Left
+)
+
 var directionalMoves = [4]Coord{{0, 1}, {0, -1}, {1, 0}, {-1, 0}}
-
-func NewTailChasingPlan() *TailChasing {
-	return &TailChasing{}
-}
-
-func (plan *TailChasing) start(state GameState) {
-	head := state.You.Head
-	middle := state.Board.Height / 2
-	plan.fromWallX = 1
-	plan.fromWallY = 1
-
-	plan.path = make([]Coord, 0)
-	if head.X > state.Board.Width/2 {
-		plan.fromWallX = -1
-	}
-	if head.Y > state.Board.Height/2 {
-		plan.fromWallY = -1
-	}
-
-	plan.corner = nearestCorner(state.You.Head, state.Board)
-	for i := 0; i < middle; i++ {
-		plan.path = append(plan.path, Coord{plan.corner.X + i*plan.fromWallX, plan.corner.Y})
-	}
-	for i := middle; i >= 0; i-- {
-		plan.path = append(plan.path, Coord{plan.corner.X + i*plan.fromWallX, plan.corner.Y + plan.fromWallY})
-	}
-	log.Printf("Board: %d wide, %d high", state.Board.Width, state.Board.Height)
-	log.Printf("Snake body: %v", state.You.Body)
-	log.Printf("Path created: %v", plan.path)
-	plan.pathIndex = pathIndex(state.You.Head, plan.path)
-	plan.pathToCorner = pathToCoord(state.You.Head, plan.corner)
-	log.Printf("Path to corner: %v", plan.pathToCorner)
-}
-
-func (plan *TailChasing) move(state GameState) BattlesnakeMoveResponse {
-	curr := state.You.Head
-	plan.pathIndex = pathIndex(state.You.Head, plan.path)
-	if plan.pathIndex != -1 {
-		next := plan.path[plan.pathIndex+1%len(plan.path)]
-		return BattlesnakeMoveResponse{Move: direction(curr, next)}
-	}
-	log.Printf("PathToCorner %v", plan.pathToCorner)
-	next := plan.pathToCorner[0]
-	plan.pathToCorner = plan.pathToCorner[1:]
-	return BattlesnakeMoveResponse{Move: direction(curr, next)}
-}
-
-func pathIndex(head Coord, path []Coord) int {
-	for i := 0; i < len(path); i++ {
-		if path[i].X == head.X && path[i].Y == head.Y {
-			return i
-		}
-	}
-	return -1
-}
 
 func direction(curr Coord, next Coord) string {
 	if curr.X == next.X {
@@ -119,10 +64,6 @@ func pathToCoord(curr, dest Coord) []Coord {
 		path = append(path, next)
 	}
 	return path
-}
-
-func (plan *TailChasing) end(state GameState) {
-
 }
 
 func fillMap(board Board, me Battlesnake) GameMap {
@@ -179,27 +120,6 @@ func nearestCorner(curr Coord, board Board) Coord {
 
 func safeMoves(curr Coord, gameMap GameMap) []Coord {
 	moves := make([]Coord, 0)
-	cell := func(x int, y int, gameMap GameMap) (bool, *CellOccupant) {
-		if x >= len(gameMap) {
-			return false, nil
-		}
-		if x < 0 {
-			return false, nil
-		}
-		if y >= len(gameMap[0]) {
-			return false, nil
-		}
-		if y < 0 {
-			return false, nil
-		}
-		return true, &gameMap[x][y]
-	}
-	isSafe := func(cell CellOccupant) bool {
-		if cell == Hazard || cell == Snake {
-			return false
-		}
-		return true
-	}
 	for i := 0; i < len(directionalMoves); i++ {
 		m := directionalMoves[i]
 		if exists, occupant := cell(curr.X+m.X, curr.Y+m.Y, gameMap); exists && isSafe(*occupant) {
@@ -207,6 +127,67 @@ func safeMoves(curr Coord, gameMap GameMap) []Coord {
 		}
 	}
 	return moves
+}
+
+func saferMoves(curr Coord, gameMap GameMap, seen []Coord, pathLength int, opponents []Battlesnake) []Coord {
+	moves := make([]Coord, 0)
+	if hasCoord(curr, seen) {
+		return moves
+	}
+	if pathLength == 0 && isSafe(gameMap[curr.X][curr.Y]) {
+		return []Coord{curr}
+	}
+	for i := 0; i < len(directionalMoves); i++ {
+		m := directionalMoves[i]
+		seen = append(seen, curr)
+		if exists, occupant := cell(curr.X+m.X, curr.Y+m.Y, gameMap); exists && isSafe(*occupant) {
+			next := Coord{curr.X + m.X, curr.Y + m.Y}
+			if len(seen) <= 0 && adjecentCellHasSnakeHead(next, opponents) {
+				continue
+			}
+			if len(saferMoves(next, gameMap, seen, pathLength-1, opponents)) > 0 {
+				moves = append(moves, Coord{curr.X + m.X, curr.Y + m.Y})
+			}
+		}
+	}
+	return moves
+}
+
+func adjecentCellHasSnakeHead(curr Coord, snakes []Battlesnake) bool {
+	for i := 0; i < len(snakes); i++ {
+		snake := snakes[i]
+		for d := 0; d < len(directionalMoves); d++ {
+			adj := directionalMoves[d]
+			next := Coord{curr.X + adj.X, curr.Y + adj.Y}
+			if next == snake.Head {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isSafe(cell CellOccupant) bool {
+	if cell == Hazard || cell == Snake {
+		return false
+	}
+	return true
+}
+
+func cell(x, y int, gameMap GameMap) (bool, *CellOccupant) {
+	if x >= len(gameMap) {
+		return false, nil
+	}
+	if x < 0 {
+		return false, nil
+	}
+	if y >= len(gameMap[0]) {
+		return false, nil
+	}
+	if y < 0 {
+		return false, nil
+	}
+	return true, &gameMap[x][y]
 }
 
 func dir(curr, next Coord) string {
@@ -227,4 +208,97 @@ func dir(curr, next Coord) string {
 		}
 	}
 	return ""
+}
+
+func makeNextMoves(curr Coord) []Coord {
+	moves := make([]Coord, 0)
+	for i := 0; i < len(directionalMoves); i++ {
+		m := directionalMoves[i]
+		moves = append(moves, Coord{curr.X + m.X, curr.Y + m.Y})
+	}
+	return moves
+}
+func nearest(curr Coord, food []Coord) Coord {
+	if len(food) == 0 {
+		return Coord{}
+	}
+	if len(food) == 1 {
+		return food[0]
+	}
+	nearest := food[0]
+
+	for i := 1; i < len(food); i++ {
+		if distanceTo(curr, food[i]) < distanceTo(curr, nearest) {
+			nearest = food[i]
+		}
+	}
+	return nearest
+}
+func distanceTo(from, to Coord) int {
+	return abs(from.X-to.X) + abs(from.Y-to.Y)
+}
+
+func abs(num int) int {
+	if num < 0 {
+		return num * -1
+	}
+	return num
+}
+
+func (coords Coords) has(c Coord) bool {
+	for i := 0; i > len(coords); i++ {
+		if coords[i] == c {
+			return true
+		}
+	}
+	return false
+}
+
+func floodFill(curr, target Coord, board Board, snakes []Battlesnake) Coords {
+	seen := make([]Coord, 0)
+	q := Queue{}
+
+	q.Enqueue(curr)
+	for !q.IsEmpty() {
+		c, _ := q.Dequeue()
+		seen = append(seen, c)
+		for i := 0; i < len(makeNextMoves(c)); i++ {
+			// if is safe and not seen
+			// add to queue
+		}
+	}
+
+	return seen
+}
+
+func hasSnakeCollision(curr Coord, snakes []Battlesnake) bool {
+	for _, snake := range snakes {
+		if hasCoord(curr, snake.Body) {
+			return true
+		}
+	}
+	return false
+}
+
+func isOffBoard(curr Coord, board Board) bool {
+	if curr.X < 0 || curr.Y < 0 {
+		return true
+	}
+	if curr.X >= board.Width || curr.Y >= board.Height {
+		return true
+	}
+	return false
+}
+
+func (m Movement) asString() string {
+	if m == Up {
+		return "up"
+	}
+	if m == Right {
+		return "right"
+	}
+	if m == Down {
+		return "down"
+	}
+	return "left"
 }

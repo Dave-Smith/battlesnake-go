@@ -12,7 +12,7 @@ var priorMoves = make(map[string]string)
 // and controls your Battlesnake's appearance
 // TIP: If you open your Battlesnake URL in a browser you should see this data
 func info() BattlesnakeInfoResponse {
-	log.Println("INFO")
+	log.Println("Creating new battlesnake")
 
 	return BattlesnakeInfoResponse{
 		APIVersion: "1",
@@ -23,16 +23,40 @@ func info() BattlesnakeInfoResponse {
 		Version:    "0.0.1-beta",
 	}
 }
+func infoSalazar() BattlesnakeInfoResponse {
+	log.Println("Creating new battlesnake salazar")
+
+	return BattlesnakeInfoResponse{
+		APIVersion: "1",
+		Author:     "Dave-Smith",
+		Color:      "#7ABF36",
+		Head:       "all-seeing",
+		Tail:       "do-sammy",
+		Version:    "0.0.1-beta",
+	}
+}
+func infoCoward() BattlesnakeInfoResponse {
+	log.Println("Creating new battlesnake coward")
+
+	return BattlesnakeInfoResponse{
+		APIVersion: "1",
+		Author:     "Dave-Smith",
+		Color:      "#e6e600",
+		Head:       "all-seeing",
+		Tail:       "do-sammy",
+		Version:    "0.0.1-beta",
+	}
+}
 
 // start is called when your Battlesnake begins a game
 func start(state GameState) {
-	log.Println("GAME START")
+	log.Printf("[%s] GAME START", state.You.Name)
 }
 
 // end is called when your Battlesnake finishes a game
 func end(state GameState) {
-	log.Printf("GAME OVER\n\n")
-	log.Printf("Ending position: %d,%d, Body: %v, ending health %d, ending length %d", state.You.Head.X, state.You.Head.Y, state.You.Body, state.You.Health, state.You.Length)
+	log.Printf("[%s] GAME OVER\n\n", state.You.Name)
+	log.Printf("[%s] Ending position: %d,%d, Body: %v, ending health %d, ending length %d", state.You.Name, state.You.Head.X, state.You.Head.Y, state.You.Body, state.You.Health, state.You.Length)
 }
 
 // move is called on every turn and returns your next move
@@ -110,7 +134,7 @@ func move(state GameState) BattlesnakeMoveResponse {
 	}
 
 	if len(safeMoves) == 0 {
-		log.Printf("MOVE %d: No safe moves detected! Moving down\n", state.Turn)
+		log.Printf("[%s] MOVE %d: No safe moves detected! Moving down\n", state.You.Name, state.Turn)
 		return BattlesnakeMoveResponse{Move: "down"}
 	}
 
@@ -139,10 +163,64 @@ func moveSemiBlindWandering(state GameState) BattlesnakeMoveResponse {
 	curr := state.You.Head
 	gameMap := fillMap(state.Board, state.You)
 	safe := safeMoves(curr, gameMap)
-	log.Printf("Safe coordinates for next move %v", safe)
+	log.Printf("[%s] Safe coordinates for next move %v", state.You.Name, safe)
 	rand.Seed(time.Now().Unix())
 	next := safe[rand.Intn(len(safe))]
 	return BattlesnakeMoveResponse{Move: dir(curr, next)}
+}
+
+func moveLessBlindWandering(state GameState) BattlesnakeMoveResponse {
+	curr := state.You.Head
+	gameMap := fillMap(state.Board, state.You)
+	opponents := make([]Battlesnake, 0)
+	for i := 0; i < len(state.Board.Snakes); i++ {
+		if state.You.ID != state.Board.Snakes[i].ID {
+			opponents = append(opponents, state.Board.Snakes[i])
+		}
+	}
+	safe := saferMoves(curr, gameMap, make([]Coord, 0), 4, opponents)
+	log.Printf("[%s] Safe coordinates for next move %v", state.You.Name, safe)
+	rand.Seed(time.Now().Unix())
+	next := safe[rand.Intn(len(safe))]
+	return BattlesnakeMoveResponse{Move: dir(curr, next)}
+}
+
+func moveSmart(state GameState) BattlesnakeMoveResponse {
+	// scan the board for a possible moves
+	myLength := state.You.Length
+	possible := fillToDepth(state.You.Head, myLength, state.Board)
+
+	var bestMove WeightedMovement
+
+	// if board has more than 3 snakes, stay small
+	if len(state.Board.Snakes) > 3 {
+		if state.You.Health < 10 {
+			bestMove = possible.bestMoveForFood(state.You)
+		}
+		if state.You.Health > 30 {
+			bestMove = possible.bestMoveToAvoidFood(state.You)
+		}
+		bestMove = possible.bestMoveForRoaming(state.You)
+		return BattlesnakeMoveResponse{Move: bestMove.movement.asString()}
+	}
+
+	// if 3 snakes, find food
+	if len(state.Board.Snakes) == 3 {
+		bestMove = possible.bestMoveForFood(state.You)
+		return BattlesnakeMoveResponse{Move: bestMove.movement.asString()}
+	}
+
+	// head to head, roam
+	bestMove = possible.bestMoveToAvoidFood(state.You)
+	return BattlesnakeMoveResponse{Move: bestMove.movement.asString()}
+}
+
+func moveAggressive(state GameState) BattlesnakeMoveResponse {
+	return BattlesnakeMoveResponse{Move: "up", Shout: "I'm coming after you"}
+}
+
+func movePassive(state GameState) BattlesnakeMoveResponse {
+	return BattlesnakeMoveResponse{Move: "down", Shout: "Run away"}
 }
 
 func main() {

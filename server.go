@@ -64,6 +64,7 @@ func HandleEnd(w http.ResponseWriter, r *http.Request) {
 
 const ServerID = "battlesnake/dave-smith/salazar"
 const ServerIdSal = "battlesnake/dave-smith/salazar"
+const ServerIdVNext = "battlesnake/dave-smith/vNext"
 const ServerIdCoward = "battlesnake/dave-smith/coward"
 const ServerIdAgg = "battlesnake/dave-smith/aggressive"
 
@@ -195,6 +196,11 @@ func RunServer() {
 	http.HandleFunc("/coward/start", SnakeHandlerStart(start, ServerIdCoward, nil))
 	http.HandleFunc("/coward/move", SnakeHandlerMove(moveLessBlindWandering, ServerIdCoward, nil))
 	http.HandleFunc("/coward/end", SnakeHandlerEnd(end, ServerIdCoward, nil))
+
+	http.HandleFunc("/vnext", SnakeHandlerInfo(infoVNext, ServerIdVNext, nil))
+	http.HandleFunc("/vnext/start", SnakeHandlerStart(start, ServerIdVNext, nil))
+	http.HandleFunc("/vnext/move", SnakeHandlerMove(moveSmart, ServerIdVNext, nil))
+	http.HandleFunc("/vnext/end", SnakeHandlerEnd(end, ServerIdVNext, nil))
 
 	http.HandleFunc("/salazar", SnakeHandlerInfo(infoSalazar, ServerIdSal, nil))
 	http.HandleFunc("/salazar/start", SnakeHandlerStart(start, ServerIdSal, nil))

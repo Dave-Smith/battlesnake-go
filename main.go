@@ -47,6 +47,18 @@ func infoCoward() BattlesnakeInfoResponse {
 		Version:    "0.0.1-beta",
 	}
 }
+func infoVNext() BattlesnakeInfoResponse {
+	log.Println("Creating new battlesnake vNext")
+
+	return BattlesnakeInfoResponse{
+		APIVersion: "1",
+		Author:     "Dave-Smith",
+		Color:      "#9af5b2",
+		Head:       "silly",
+		Tail:       "bolt",
+		Version:    "0.0.1-beta",
+	}
+}
 
 // start is called when your Battlesnake begins a game
 func start(state GameState) {

@@ -110,8 +110,8 @@ func (moves WeightedMovementSet) bestMoveToAvoidFood(you Battlesnake) WeightedMo
 }
 
 func (moves WeightedMovementSet) bestMoveForRoaming(you Battlesnake) WeightedMovement {
-	best := moves[0]
-	for i := 1; i < len(moves); i++ {
+	best := moves[3]
+	for i := len(moves); i >= 0; i-- {
 		move := moves[i]
 		if best.certainDeath || len(move.open) > len(best.open) {
 			best = move

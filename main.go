@@ -199,8 +199,8 @@ func moveLessBlindWandering(state GameState) BattlesnakeMoveResponse {
 
 func moveSmart(state GameState) BattlesnakeMoveResponse {
 	// scan the board for a possible moves
-	myLength := state.You.Length
-	possible := fillToDepth(state.You.Head, myLength, state.Board)
+	//myLength := state.You.Length
+	possible := fillToDepth(state.You.Head, 4, state.Board)
 
 	var bestMove WeightedMovement
 
@@ -224,7 +224,7 @@ func moveSmart(state GameState) BattlesnakeMoveResponse {
 
 	// head to head, roam
 	bestMove = possible.bestMoveToAvoidFood(state.You)
-	return BattlesnakeMoveResponse{Move: bestMove.movement.asString()}
+	return BattlesnakeMoveResponse{Move: bestMove.movement.asString(), Shout: "Avoiding food"}
 }
 
 func moveAggressive(state GameState) BattlesnakeMoveResponse {

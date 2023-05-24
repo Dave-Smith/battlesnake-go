@@ -14,30 +14,34 @@ type WeightedMovement struct {
 }
 type WeightedMovementSet []WeightedMovement
 
-func makeOpeningMoves(c Coord) []WeightedMovement {
+func makeOpeningMoves(c Coord) WeightedMovementSet {
 	return []WeightedMovement{
-		{movement: Up, root: Coord{c.X, c.Y + 1}, open: make([]Coord, 0)},
-		{movement: Right, root: Coord{c.X + 1, c.Y}, open: make([]Coord, 0)},
-		{movement: Down, root: Coord{c.X, c.Y - 1}, open: make([]Coord, 0)},
-		{movement: Left, root: Coord{c.X - 1, c.Y}, open: make([]Coord, 0)}}
+		{movement: Up, root: Coord{c.X, c.Y + 1}, open: make([]Coord, 0, 5)},
+		{movement: Right, root: Coord{c.X + 1, c.Y}, open: make([]Coord, 0, 5)},
+		{movement: Down, root: Coord{c.X, c.Y - 1}, open: make([]Coord, 0, 5)},
+		{movement: Left, root: Coord{c.X - 1, c.Y}, open: make([]Coord, 0, 5)}}
 }
+
 func (w *WeightedMovement) addOpenSpot(c Coord) {
+	if w.open == nil {
+		w.open = make([]Coord, 5)
+	}
 	w.open = append(w.open, c)
 }
+
 func fillToDepth(start Coord, depthLimit int, board Board) WeightedMovementSet {
 	movements := makeOpeningMoves(start)
 
 	for i := 0; i < len(movements); i++ {
 		depth := 0
 		countdownToNextDepth := 1
-		move := movements[i]
 		seen := make([]Coord, 0)
 		q := Queue{}
-		q.Enqueue(move.root)
+		q.Enqueue(movements[i].root)
 
-		if isOffBoard(move.root, board) || hasSnakeCollision(move.root, board.Snakes) {
-			log.Printf("Not moving %s to %v because of certain death", move.movement.asString(), move.root)
-			move.certainDeath = true
+		if isOffBoard(movements[i].root, board) || hasSnakeCollision(movements[i].root, board.Snakes) {
+			movements[i].certainDeath = true
+			log.Printf("Not moving %s to %v because of certain death, move deets %v", movements[i].movement.asString(), movements[i].root, move)
 		}
 
 		for !q.IsEmpty() {
@@ -61,21 +65,22 @@ func fillToDepth(start Coord, depthLimit int, board Board) WeightedMovementSet {
 				continue
 			}
 			if hasSnakeCollision(curr, board.Snakes) {
-				move.obstacles++
+				movements[i].obstacles++
 				continue
 			}
 			for _, food := range board.Food {
 				if curr == food {
-					move.food++
+					movements[i].food++
 				}
 			}
 			for _, snake := range board.Snakes {
 				if curr == snake.Head {
-					move.heads++
+					movements[i].heads++
 				}
 			}
 
-			move.addOpenSpot(curr)
+			log.Printf("Adding open spot %v to %v", curr, movements[i].root)
+			movements[i].addOpenSpot(curr)
 			seen = append(seen, curr)
 			nextMoves := makeNextMoves(curr)
 			for _, next := range nextMoves {
@@ -84,6 +89,7 @@ func fillToDepth(start Coord, depthLimit int, board Board) WeightedMovementSet {
 			}
 		}
 	}
+	log.Printf("After flood fill %v", movements)
 	return movements
 }
 
@@ -99,6 +105,7 @@ func (moves WeightedMovementSet) bestMoveForFood(you Battlesnake) WeightedMoveme
 }
 
 func (moves WeightedMovementSet) bestMoveToAvoidFood(you Battlesnake) WeightedMovement {
+	log.Printf("Avoiding Food: Possible movements %v", moves)
 	best := moves[0]
 	for i := 1; i < len(moves); i++ {
 		move := moves[i]
@@ -110,6 +117,7 @@ func (moves WeightedMovementSet) bestMoveToAvoidFood(you Battlesnake) WeightedMo
 }
 
 func (moves WeightedMovementSet) bestMoveForRoaming(you Battlesnake) WeightedMovement {
+	log.Printf("Roaming: Possible movements %v", moves)
 	best := moves[3]
 	for i := len(moves); i >= 0; i-- {
 		move := moves[i]

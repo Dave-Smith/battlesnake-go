@@ -201,6 +201,7 @@ func moveSmart(state GameState) BattlesnakeMoveResponse {
 	// scan the board for a possible moves
 	//myLength := state.You.Length
 	possible := fillToDepth(state.You.Head, 4, state.Board)
+	possible = possible.avoidCertainDeath()
 
 	var bestMove WeightedMovement
 
@@ -223,7 +224,19 @@ func moveSmart(state GameState) BattlesnakeMoveResponse {
 	}
 
 	// head to head, roam
-	bestMove = possible.bestMoveToAvoidFood(state.You)
+	starvingMove := possible.bestMoveToAvoidFood(state.You)
+	defensiveMove := possible.bestMoveForDefense(state.You)
+	//offensiveMove := possible.bestMoveForOffense(state.You)
+	if starvingMove.root == defensiveMove.root {
+		bestMove = starvingMove
+	}
+
+	if state.You.Health < 15 {
+		bestMove = defensiveMove
+	} else {
+		bestMove = starvingMove
+	}
+
 	return BattlesnakeMoveResponse{Move: bestMove.movement.asString(), Shout: "Avoiding food"}
 }
 

@@ -1,25 +1,35 @@
 package main
 
-import "log"
+import (
+	"log"
+	"math/rand"
+	"time"
+)
 
+type Opponent struct {
+	distance  int
+	length    int
+	headCoord Coord
+}
 type WeightedMovement struct {
-	movement     Movement
-	root         Coord
-	obstacles    int
-	open         []Coord
-	heads        int
-	food         int
-	deadEnd      bool
-	certainDeath bool
+	movement        Movement
+	root            Coord
+	obstacles       int
+	open            []Coord
+	heads           int
+	food            int
+	deadEnd         bool
+	certainDeath    bool
+	nearestOpponent Opponent
 }
 type WeightedMovementSet []WeightedMovement
 
 func makeOpeningMoves(c Coord) WeightedMovementSet {
 	return []WeightedMovement{
-		{movement: Up, root: Coord{c.X, c.Y + 1}, open: make([]Coord, 0, 5)},
-		{movement: Right, root: Coord{c.X + 1, c.Y}, open: make([]Coord, 0, 5)},
-		{movement: Down, root: Coord{c.X, c.Y - 1}, open: make([]Coord, 0, 5)},
-		{movement: Left, root: Coord{c.X - 1, c.Y}, open: make([]Coord, 0, 5)}}
+		{movement: Up, root: Coord{c.X, c.Y + 1}, open: make([]Coord, 0, 5), nearestOpponent: Opponent{}},
+		{movement: Right, root: Coord{c.X + 1, c.Y}, open: make([]Coord, 0, 5), nearestOpponent: Opponent{}},
+		{movement: Down, root: Coord{c.X, c.Y - 1}, open: make([]Coord, 0, 5), nearestOpponent: Opponent{}},
+		{movement: Left, root: Coord{c.X - 1, c.Y}, open: make([]Coord, 0, 5), nearestOpponent: Opponent{}}}
 }
 
 func (w *WeightedMovement) addOpenSpot(c Coord) {
@@ -41,7 +51,7 @@ func fillToDepth(start Coord, depthLimit int, board Board) WeightedMovementSet {
 
 		if isOffBoard(movements[i].root, board) || hasSnakeCollision(movements[i].root, board.Snakes) {
 			movements[i].certainDeath = true
-			log.Printf("Not moving %s to %v because of certain death, move deets %v", movements[i].movement.asString(), movements[i].root, move)
+			log.Printf("Not moving %s to %v because of certain death, move deets %v", movements[i].movement.asString(), movements[i].root, movements[i])
 		}
 
 		for !q.IsEmpty() {
@@ -76,10 +86,18 @@ func fillToDepth(start Coord, depthLimit int, board Board) WeightedMovementSet {
 			for _, snake := range board.Snakes {
 				if curr == snake.Head {
 					movements[i].heads++
+					if movements[i].nearestOpponent.distance >= depth {
+						movements[i].nearestOpponent = Opponent{
+							distance:  depth,
+							length:    snake.Length,
+							headCoord: snake.Head,
+						}
+					}
 				}
+				// log.Printf("Nearest snake %v", movements[i].nearestOpponent)
 			}
 
-			log.Printf("Adding open spot %v to %v", curr, movements[i].root)
+			//log.Printf("Adding open spot %v to %v", curr, movements[i].root)
 			movements[i].addOpenSpot(curr)
 			seen = append(seen, curr)
 			nextMoves := makeNextMoves(curr)
@@ -89,7 +107,7 @@ func fillToDepth(start Coord, depthLimit int, board Board) WeightedMovementSet {
 			}
 		}
 	}
-	log.Printf("After flood fill %v", movements)
+	//log.Printf("After flood fill %v", movements)
 	return movements
 }
 
@@ -105,7 +123,7 @@ func (moves WeightedMovementSet) bestMoveForFood(you Battlesnake) WeightedMoveme
 }
 
 func (moves WeightedMovementSet) bestMoveToAvoidFood(you Battlesnake) WeightedMovement {
-	log.Printf("Avoiding Food: Possible movements %v", moves)
+	//log.Printf("Avoiding Food: Possible movements %v", moves)
 	best := moves[0]
 	for i := 1; i < len(moves); i++ {
 		move := moves[i]
@@ -116,14 +134,59 @@ func (moves WeightedMovementSet) bestMoveToAvoidFood(you Battlesnake) WeightedMo
 	return best
 }
 
-func (moves WeightedMovementSet) bestMoveForRoaming(you Battlesnake) WeightedMovement {
-	log.Printf("Roaming: Possible movements %v", moves)
-	best := moves[3]
-	for i := len(moves); i >= 0; i-- {
+func (moves WeightedMovementSet) bestMoveForDefense(you Battlesnake) WeightedMovement {
+	best := moves[0]
+	for i := 1; i < len(moves); i++ {
 		move := moves[i]
-		if best.certainDeath || len(move.open) > len(best.open) {
+		if best.certainDeath || (move.nearestOpponent.distance > best.nearestOpponent.distance && move.nearestOpponent.length >= you.Length) {
 			best = move
 		}
 	}
 	return best
+}
+
+func (moves WeightedMovementSet) bestMoveForOffense(you Battlesnake) WeightedMovement {
+	var best WeightedMovement
+	for i := 0; i < len(moves); i++ {
+		move := moves[i]
+		if !move.certainDeath && (move.nearestOpponent.distance < best.nearestOpponent.distance && move.nearestOpponent.length < you.Length) {
+			best = move
+		}
+	}
+	return best
+}
+
+func (moves WeightedMovementSet) avoidCertainDeath() WeightedMovementSet {
+	n := 0
+	for _, val := range moves {
+		if !val.certainDeath {
+			moves[n] = val
+			n++
+		}
+	}
+	return moves[:n]
+}
+
+func (moves WeightedMovementSet) bestMoveForRoaming(you Battlesnake) WeightedMovement {
+	//log.Printf("Roaming: Possible movements %v", moves)
+	safest := make([]WeightedMovement, 0)
+	safer := make([]WeightedMovement, 0)
+	for i := 0; i >= len(moves); i++ {
+		move := moves[i]
+		if !move.certainDeath {
+			safest = append(safest, move)
+		}
+		if !move.certainDeath && (move.nearestOpponent.distance == 0 || move.nearestOpponent.distance > 1) {
+			safer = append(safer, move)
+		}
+	}
+	if len(safest) == 0 {
+		return moves[0]
+	}
+
+	rand.Seed(time.Now().Unix())
+	if len(safer) == 0 {
+		return safest[rand.Intn(len(safest))]
+	}
+	return safest[rand.Intn(len(safer))]
 }

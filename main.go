@@ -68,7 +68,7 @@ func start(state GameState) {
 // end is called when your Battlesnake finishes a game
 func end(state GameState) {
 	log.Printf("[%s] GAME OVER\n\n", state.You.Name)
-	log.Printf("[%s] Ending position: %d,%d, Body: %v, ending health %d, ending length %d", state.You.Name, state.You.Head.X, state.You.Head.Y, state.You.Body, state.You.Health, state.You.Length)
+	log.Printf("[%s] Ending position: [%d,%d], Body: %v, ending health %d, ending length %d", state.You.Name, state.You.Head.X, state.You.Head.Y, state.You.Body, state.You.Health, state.You.Length)
 }
 
 // move is called on every turn and returns your next move
@@ -200,10 +200,24 @@ func moveLessBlindWandering(state GameState) BattlesnakeMoveResponse {
 func moveSmart(state GameState) BattlesnakeMoveResponse {
 	// scan the board for a possible moves
 	//myLength := state.You.Length
-	possible := fillToDepth(state.You.Head, 4, state.Board)
+	log.Printf("[%s] Starting Turn %d", state.You.Name, state.Turn)
+	possible := fillToDepth(state.You.Head, 5, state.Board)
 	possible = possible.avoidCertainDeath()
 
 	var bestMove WeightedMovement
+
+	// start game hunting for food
+	if state.Turn < 30 || state.You.Health < 20 {
+		food := NearestFoods(state.You, state.Board)
+		if len(food) > 0 {
+			for _, f := range food {
+				if !f.Collision {
+					movement := UseMovement(state.You.Head, f.Coords[0])
+					return BattlesnakeMoveResponse{Move: movement.asString()}
+				}
+			}
+		}
+	}
 
 	// if board has more than 3 snakes, stay small
 	if len(state.Board.Snakes) > 3 {
@@ -225,16 +239,17 @@ func moveSmart(state GameState) BattlesnakeMoveResponse {
 
 	// head to head, roam
 	starvingMove := possible.bestMoveToAvoidFood(state.You)
-	defensiveMove := possible.bestMoveForDefense(state.You)
+	defensiveMove := possible.bestMoveForRoaming(state.You)
 	//offensiveMove := possible.bestMoveForOffense(state.You)
 	if starvingMove.root == defensiveMove.root {
 		bestMove = starvingMove
 	}
 
 	if state.You.Health < 15 {
-		bestMove = defensiveMove
+		bestMove = possible.bestMoveForFood(state.You)
+		log.Printf("[%s] looking for food, %d moves away", state.You.Name, bestMove.distanceToFood)
 	} else {
-		bestMove = starvingMove
+		bestMove = defensiveMove
 	}
 
 	return BattlesnakeMoveResponse{Move: bestMove.movement.asString(), Shout: "Avoiding food"}

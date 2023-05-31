@@ -302,3 +302,16 @@ func (m Movement) asString() string {
 	}
 	return "left"
 }
+
+func UseMovement(source, target Coord) Movement {
+	if source.X < target.X {
+		return Right
+	}
+	if source.X > target.X {
+		return Left
+	}
+	if source.Y < target.Y {
+		return Up
+	}
+	return Down
+}

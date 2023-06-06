@@ -201,7 +201,7 @@ func moveSmart(state GameState) BattlesnakeMoveResponse {
 	// scan the board for a possible moves
 	//myLength := state.You.Length
 	log.Printf("[%s] Starting Turn %d", state.You.Name, state.Turn)
-	possible := fillToDepth(state.You.Head, 5, state.Board)
+	possible := fillToDepth(state.You.Head, state.You.Length, state.Board)
 	possible = possible.avoidCertainDeath()
 
 	var bestMove WeightedMovement
@@ -216,7 +216,7 @@ func moveSmart(state GameState) BattlesnakeMoveResponse {
 	dangerishZones := MakeHeadZones(otherSnakes, state.Board, 2)
 	log.Printf("Other snakes bubbles %v", dangerishZones)
 
-	// possible attack
+	// possible offensive attack
 	for _, p := range possible {
 		for _, danger := range dangerishZones {
 			if hasCoord(p.root, danger.Zone) && danger.SnakeLength < state.You.Length {
@@ -253,8 +253,8 @@ func moveSmart(state GameState) BattlesnakeMoveResponse {
 	}
 
 	// if board has more than 3 snakes, stay small
-	if len(state.Board.Snakes) > 3 {
-		if state.You.Health < 10 {
+	if len(state.Board.Snakes) > 7 {
+		if state.You.Health < 30 {
 			bestMove = possible.bestMoveForFood(state.You)
 		}
 		if state.You.Health > 30 {
@@ -265,20 +265,20 @@ func moveSmart(state GameState) BattlesnakeMoveResponse {
 	}
 
 	// if 3 snakes, find food
-	if len(state.Board.Snakes) == 3 {
-		bestMove = possible.bestMoveForFood(state.You)
-		return BattlesnakeMoveResponse{Move: bestMove.movement.asString()}
-	}
+	// if len(state.Board.Snakes) == 3 {
+	// 	bestMove = possible.bestMoveForFood(state.You)
+	// 	return BattlesnakeMoveResponse{Move: bestMove.movement.asString()}
+	// }
 
 	// head to head, roam
 	starvingMove := possible.bestMoveToAvoidFood(state.You)
 	defensiveMove := possible.bestMoveForRoaming(state.You)
 	//offensiveMove := possible.bestMoveForOffense(state.You)
 	if starvingMove.root == defensiveMove.root {
-		bestMove = starvingMove
+		bestMove = defensiveMove
 	}
 
-	if state.You.Health < 15 {
+	if state.You.Health < 45 {
 		bestMove = possible.bestMoveForFood(state.You)
 		log.Printf("[%s] looking for food, %d moves away", state.You.Name, bestMove.distanceToFood)
 	} else {

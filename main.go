@@ -206,13 +206,40 @@ func moveSmart(state GameState) BattlesnakeMoveResponse {
 
 	var bestMove WeightedMovement
 
+	otherSnakes := make([]Battlesnake, 0)
+	for _, s := range state.Board.Snakes {
+		if s.Name != state.You.Name {
+			otherSnakes = append(otherSnakes, s)
+		}
+	}
+
+	dangerishZones := MakeHeadZones(otherSnakes, state.Board, 2)
+	log.Printf("Other snakes bubbles %v", dangerishZones)
+
 	// start game hunting for food
-	if state.Turn < 30 || state.You.Health < 20 {
+	if state.Turn < 70 || state.You.Health < 30 {
 		food := NearestFoods(state.You, state.Board)
 		if len(food) > 0 {
 			for _, f := range food {
 				if !f.Collision {
+					isSafe := false
 					movement := UseMovement(state.You.Head, f.Coords[0])
+					for _, p := range possible {
+						if p.movement == movement {
+							isSafe = true
+						}
+					}
+					for _, danger := range dangerishZones {
+						if !isSafe {
+							break
+						}
+						if hasCoord(f.Coords[0], danger.Zone) && danger.SnakeLength < state.You.Length {
+							return BattlesnakeMoveResponse{Move: movement.asString()}
+						}
+						if hasCoord(f.Coords[0], danger.Zone) {
+							break
+						}
+					}
 					return BattlesnakeMoveResponse{Move: movement.asString()}
 				}
 			}

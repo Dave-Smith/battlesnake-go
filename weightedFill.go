@@ -205,14 +205,27 @@ func (moves WeightedMovementSet) bestMoveForRoaming(you Battlesnake) WeightedMov
 			safer = append(safer, move)
 		}
 	}
-	if len(safest) == 0 {
-		log.Printf("[%s] No safest moves available", you.Name)
-		return moves[0]
-	}
 
 	rand.Seed(time.Now().Unix())
-	if len(safer) == 0 {
+	if len(safest) > 0 {
 		return safest[rand.Intn(len(safest))]
+	} else {
+		log.Printf("[%s] No safest moves available", you.Name)
 	}
-	return safest[rand.Intn(len(safer))]
+
+	if len(safer) > 0 {
+		return safer[rand.Intn(len(safer))]
+	} else {
+		log.Printf("[%s] No safer moves available", you.Name)
+	}
+
+	return moves[rand.Intn(len(moves))]
+}
+
+func isCorner(c Coord, board Board) bool {
+	corners := []Coord{{0, 0}, {0, board.Height - 1}, {board.Width - 1, 0}, {board.Width - 1, board.Width - 1}}
+	if hasCoord(c, corners) {
+		return true
+	}
+	return false
 }

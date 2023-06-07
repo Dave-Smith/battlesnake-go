@@ -37,7 +37,7 @@ func makeOpeningMoves(c Coord) WeightedMovementSet {
 
 func (w *WeightedMovement) addOpenSpot(c Coord) {
 	if w.open == nil {
-		w.open = make([]Coord, 5)
+		w.open = make([]Coord, 0)
 	}
 	w.open = append(w.open, c)
 }
@@ -63,7 +63,7 @@ func fillToDepth(start Coord, depthLimit int, board Board) WeightedMovementSet {
 			log.Printf("Not moving %s to %v because of certain death, move deets %v", movements[i].movement.asString(), movements[i].root, movements[i])
 		}
 
-		// todo look out for corners.  might get trapped
+		// look out for corners.  might get trapped
 		corners := []Coord{{0, 0}, {0, board.Height - 1}, {board.Width - 1, 0}, {board.Width - 1, board.Width - 1}}
 		if hasCoord(movements[i].root, corners) {
 			movements[i].movingToCorner = true
@@ -98,7 +98,7 @@ func fillToDepth(start Coord, depthLimit int, board Board) WeightedMovementSet {
 						movements[i].heads++
 						if movements[i].nearestOpponent.distance == 0 || movements[i].nearestOpponent.distance >= depth {
 							movements[i].nearestOpponent = Opponent{
-								distance:  depth,
+								distance:  distanceTo(start, curr),
 								length:    snake.Length,
 								headCoord: snake.Head,
 							}
@@ -198,28 +198,30 @@ func (moves WeightedMovementSet) bestMoveForRoaming(you Battlesnake) WeightedMov
 	safer := make([]WeightedMovement, 0)
 	for i := 0; i < len(moves); i++ {
 		move := moves[i]
-		if (move.nearestOpponent.distance == 0 || move.nearestOpponent.distance > 2) && !move.opponentInDmz && !move.movingToCorner {
+		opponent := move.nearestOpponent
+
+		if (opponent.distance == 0 || opponent.distance > 2) && !move.opponentInDmz && !move.movingToCorner && len(move.open) >= you.Length {
 			safest = append(safest, move)
 		}
-		if move.nearestOpponent.distance == 0 || move.nearestOpponent.distance > 1 {
+		if opponent.distance == 0 || opponent.distance > 1 && len(move.open) >= you.Length && (opponent.headCoord.X != you.Head.X || opponent.headCoord.Y != you.Head.Y) {
 			safer = append(safer, move)
 		}
 	}
 
 	rand.Seed(time.Now().Unix())
 	if len(safest) > 0 {
-		return safest[rand.Intn(len(safest))]
+		return mostOpenMoves(safest)
 	} else {
 		log.Printf("[%s] No safest moves available", you.Name)
 	}
 
 	if len(safer) > 0 {
-		return safer[rand.Intn(len(safer))]
+		return mostOpenMoves(safer)
 	} else {
 		log.Printf("[%s] No safer moves available", you.Name)
 	}
 
-	return moves[rand.Intn(len(moves))]
+	return mostOpenMoves(moves)
 }
 
 func isCorner(c Coord, board Board) bool {
@@ -228,4 +230,80 @@ func isCorner(c Coord, board Board) bool {
 		return true
 	}
 	return false
+}
+
+func isOnBorder(c Coord, board Board) bool {
+	if c.X == 0 || c.X == board.Width-1 {
+		return true
+	}
+	if c.Y == 0 || c.Y == board.Height-1 {
+		return true
+	}
+	return false
+}
+
+func isOccupied(c Coord, allSnakes []Battlesnake) bool {
+	for _, s := range allSnakes {
+		if hasCoord(c, s.Body) {
+			return true
+		}
+	}
+	return false
+}
+
+func isOccupiedBySmallerSnake(c Coord, you Battlesnake, otherSnakes []Battlesnake) bool {
+	for _, s := range otherSnakes {
+		if c == s.Head && you.Length > s.Length {
+			return true
+		}
+	}
+	return false
+}
+
+func isNearSnakeHead(c Coord, snakeZone []HeadZone) bool {
+	for _, s := range snakeZone {
+		if hasCoord(c, s.Zone) {
+			return true
+		}
+	}
+	return false
+}
+
+func isNearSmallerSnakeHead(c Coord, you Battlesnake, snakeZone []HeadZone) bool {
+	for _, s := range snakeZone {
+		if hasCoord(c, s.Zone) && you.Length > s.SnakeLength {
+			return true
+		}
+	}
+	return false
+}
+
+func hasFood(c Coord, food []Coord) bool {
+	for _, f := range food {
+		if c == f {
+			return true
+		}
+	}
+	return false
+}
+
+func nearestSmallerSnake(c Coord, you Battlesnake, snakes []Battlesnake) Coord {
+	var head Coord
+	for _, s := range snakes {
+		if you.Length > s.Length {
+			head = c
+		}
+	}
+
+	return head
+}
+
+func mostOpenMoves(possible WeightedMovementSet) WeightedMovement {
+	move := possible[0]
+	for _, m := range possible {
+		if len(m.open) > len(move.open) {
+			move = m
+		}
+	}
+	return move
 }

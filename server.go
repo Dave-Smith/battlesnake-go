@@ -204,7 +204,7 @@ func RunServer() {
 
 	http.HandleFunc("/salazar", SnakeHandlerInfo(infoSalazar, ServerIdSal, nil))
 	http.HandleFunc("/salazar/start", SnakeHandlerStart(start, ServerIdSal, nil))
-	http.HandleFunc("/salazar/move", SnakeHandlerMove(moveLessBlindWandering, ServerIdSal, nil))
+	http.HandleFunc("/salazar/move", SnakeHandlerMove(moveSmart, ServerIdSal, nil))
 	http.HandleFunc("/salazar/end", SnakeHandlerEnd(end, ServerIdSal, nil))
 
 	log.Printf("Running Battlesnake at http://0.0.0.0:%s...\n", port)

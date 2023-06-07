@@ -12,15 +12,16 @@ type PossibleMove struct {
 	IsOccupiedBySmallerSnake bool
 	IsCorner                 bool
 	IsOnBorder               bool
-	IsOnObstacle             bool
-	IsNearAnySnake           bool
-	IsNearSmallerSnake       bool
-	IsAdjacentToSmallerSnake bool
-	NearestFood              int
-	NearestSnake             int
-	NearestSmallerSnake      int
-	NearestSnakeBody         int
-	Paths                    []Path
+	//IsOnObstacle             bool
+	IsNearAnySnake     bool
+	IsNearSmallerSnake bool
+	//IsAdjacentToSmallerSnake bool
+	//NearestFood              int
+	//NearestSnake             int
+	NearestSmallerSnake Coord
+
+	//NearestSnakeBody         int
+	//Paths                    []Path
 }
 
 type OtherSnake struct {

@@ -207,9 +207,13 @@ func moveSmart(state GameState) BattlesnakeMoveResponse {
 	var bestMove WeightedMovement
 
 	otherSnakes := make([]Battlesnake, 0)
+	longestSnake := 0
 	for _, s := range state.Board.Snakes {
 		if s.Name != state.You.Name {
 			otherSnakes = append(otherSnakes, s)
+			if s.Length > longestSnake {
+				longestSnake = s.Length
+			}
 		}
 	}
 
@@ -225,8 +229,31 @@ func moveSmart(state GameState) BattlesnakeMoveResponse {
 		}
 	}
 
+	// possibleMoves := make([]PossibleMove, 0)
+	// for _, p := range possible {
+	// 	curr := state.You.Head
+	// 	next := p.root
+	// 	move := PossibleMove{
+	// 		Curr:                     curr,
+	// 		Next:                     p.root,
+	// 		Prev:                     state.You.Body[1],
+	// 		Dir:                      p.movement,
+	// 		IsOffBoard:               isOffBoard(next, state.Board),
+	// 		IsBackwards:              next == state.You.Body[1],
+	// 		IsCorner:                 isCorner(next, state.Board),
+	// 		IsOnBorder:               isOnBorder(next, state.Board),
+	// 		IsOccupied:               isOccupied(next, state.Board.Snakes),
+	// 		IsOccupiedBySmallerSnake: isOccupiedBySmallerSnake(next, state.You, otherSnakes),
+	// 		HasFood:                  hasFood(next, state.Board.Food),
+	// 		IsNearAnySnake:           isNearSnakeHead(next, dangerishZones),
+	// 		IsNearSmallerSnake:       isNearSmallerSnakeHead(next, state.You, dangerishZones),
+	// 		NearestSmallerSnake:      nearestSmallerSnake(next, state.You, otherSnakes),
+	// 	}
+	// 	possibleMoves = append(possibleMoves, move)
+	// }
+
 	// start game hunting for food
-	if state.Turn < 70 || state.You.Health < 50 {
+	if state.Turn < 70 || state.You.Health < 50 || state.You.Length < longestSnake {
 		food := NearestFoods(state.You, state.Board)
 		if len(food) > 0 {
 			for _, f := range food {
@@ -252,7 +279,7 @@ func moveSmart(state GameState) BattlesnakeMoveResponse {
 		}
 	}
 
-	// if board has more than 3 snakes, stay small
+	// if board has more than 7 snakes, stay small
 	if len(state.Board.Snakes) > 7 {
 		if state.You.Health < 30 {
 			bestMove = possible.bestMoveForFood(state.You)
@@ -271,12 +298,13 @@ func moveSmart(state GameState) BattlesnakeMoveResponse {
 	// }
 
 	// head to head, roam
-	starvingMove := possible.bestMoveToAvoidFood(state.You)
+	//starvingMove := possible.bestMoveToAvoidFood(state.You)
 	defensiveMove := possible.bestMoveForRoaming(state.You)
 	//offensiveMove := possible.bestMoveForOffense(state.You)
-	if starvingMove.root == defensiveMove.root {
-		bestMove = defensiveMove
-	}
+	//if starvingMove.root == defensiveMove.root {
+	//bestMove = defensiveMove
+	//}
+	bestMove = defensiveMove
 
 	if state.You.Health < 45 {
 		bestMove = possible.bestMoveForFood(state.You)
